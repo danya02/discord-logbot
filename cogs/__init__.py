@@ -1,2 +1,3 @@
 from .status_tracker import StatusTracker
-cog_list = [StatusTracker]
+from .guild_join_tracker import GuildJoinTracker
+cog_list = [StatusTracker, GuildJoinTracker]

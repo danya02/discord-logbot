@@ -105,4 +105,7 @@ class BotReadyTimeSeries(TimeSeries):
 
 
 
-
+@create_table
+class GuildJoinTimeSeries(TimeSeries):
+    guild_id = pw.BigIntegerField()
+    is_joining = pw.BooleanField()
