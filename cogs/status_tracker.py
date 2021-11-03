@@ -1,5 +1,6 @@
 from database import BotReadyTimeSeries
 from discord.ext import commands, tasks
+from .common import *
 
 INTERVAL = 10
 
@@ -10,4 +11,5 @@ class StatusTracker(commands.Cog):
 
     @tasks.loop(seconds=INTERVAL)
     async def check_loop(self):
-        BotReadyTimeSeries.record_status(self.bot.is_ready(), INTERVAL)
+        await asyncify( BotReadyTimeSeries.record_status, self.bot.is_ready(), INTERVAL )
+
