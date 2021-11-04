@@ -3,7 +3,7 @@ from typing import Union
 from discord.ext.commands import Context
 import datetime
 
-db = pw.SqliteDatabase('/data.db')
+db = pw.SqliteDatabase('./data.db')
 
 class MyModel(pw.Model):
     class Meta:
@@ -32,7 +32,7 @@ class GuildSettings(MyModel):
         else:
             guild_id = ctx.guild.id
         guild_settings, _ = cls.get_or_create(guild_id=guild_id)
-        return feature_name in guild_settings.features.split()
+        return feature_name in guild_settings.features.split() or 'EVERYTHING' in guild_settings.features.split()
 
 
     @classmethod
@@ -109,3 +109,10 @@ class BotReadyTimeSeries(TimeSeries):
 class GuildJoinTimeSeries(TimeSeries):
     guild_id = pw.BigIntegerField()
     is_joining = pw.BooleanField()
+
+@create_table
+class GuildMemberJoinTimeSeries(TimeSeries):
+    guild_id = pw.BigIntegerField()
+    member_id = pw.BigIntegerField()
+    is_joining = pw.BooleanField()
+

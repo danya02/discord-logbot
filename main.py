@@ -8,7 +8,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-bot = commands.Bot(command_prefix='!@#$%^!@#$%^', help_command=None)
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix='!@#$%^!@#$%^', help_command=None, intents=intents)
 
 for cog in cog_list:
     bot.add_cog( cog(bot) )
