@@ -136,5 +136,10 @@ class GuildInviteTimeSeries(TimeSeries):
     max_uses = pw.IntegerField(null=True)
     inviter_id = pw.BigIntegerField(null=True)
 
+@create_table
+class TypingTimeSeries(TimeSeries):
+    guild_id = pw.BigIntegerField(null=True)
+    channel_id = pw.BigIntegerField()
+    member_id = pw.BigIntegerField()
 
     
