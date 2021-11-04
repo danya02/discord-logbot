@@ -116,3 +116,25 @@ class GuildMemberJoinTimeSeries(TimeSeries):
     member_id = pw.BigIntegerField()
     is_joining = pw.BooleanField()
 
+@create_table
+class GuildMemberBanTimeSeries(TimeSeries):
+    guild_id = pw.BigIntegerField()
+    member_id = pw.BigIntegerField()
+    is_banned = pw.BooleanField()
+
+@create_table
+class GuildInviteTimeSeries(TimeSeries):
+    is_creating = pw.BooleanField()
+    guild_id = pw.BigIntegerField()
+    channel_id = pw.BigIntegerField()
+    code = pw.CharField()
+    max_age = pw.BooleanField(null=True)
+    revoked = pw.BooleanField(null=True)
+    created_at_recv = pw.DateTimeField(null=True)
+    temporary = pw.BooleanField(null=True)
+    uses = pw.IntegerField(null=True)
+    max_uses = pw.IntegerField(null=True)
+    inviter_id = pw.BigIntegerField(null=True)
+
+
+    
