@@ -4,6 +4,7 @@ from .guild_member_join_tracker import GuildMemberJoinTracker
 from .guild_member_ban_tracker import GuildMemberBanTracker
 from .guild_invite_tracker import GuildInviteTracker
 from .typing_tracker import TypingTracker
+from .message_reaction_tracker import MessageReactionTracker
 cog_list = [
         StatusTracker,
         GuildJoinTracker,
@@ -11,4 +12,5 @@ cog_list = [
         GuildMemberBanTracker,
         GuildInviteTracker,
         TypingTracker,
+        MessageReactionTracker,
 ]

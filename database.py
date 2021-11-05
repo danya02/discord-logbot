@@ -2,6 +2,8 @@ import peewee as pw
 from typing import Union
 from discord.ext.commands import Context
 import datetime
+from enum import Enum
+import logging
 
 db = pw.SqliteDatabase('./data.db')
 
@@ -64,45 +66,46 @@ class BotReadyTimeSeries(TimeSeries):
     def record_status(cls, status: bool, loop_interval: float, time_margin=3) -> None:
         """ Record the current status of the bot, and automatically deduplicate entries. """
         
+        logging.debug(f"Recording current state as {status}")
+
         try:
             last_record = cls.select().order_by(-cls.when).get()
         except cls.DoesNotExist:
+            # if there were no records found, this is the first one, so just record this status
             cls.create(is_ready=status)
             return
 
-        if status != last_record.is_ready:
-            # Status changed within last loop, so we say that starting from the last loop the status is the new one.
-            last_record_ended_at = last_record.when + datetime.timedelta(seconds=last_record.state_stable_for_seconds)
-            cls.create(when=last_record_ended_at, is_ready=status)
+        now = datetime.datetime.now()
+        time_since_last_record_started = (now - last_record.when).total_seconds()
+        last_record_ended_at = last_record.when + datetime.timedelta(seconds=last_record.state_stable_for_seconds)
+        time_since_last_record_ended = (now - last_record_ended_at).total_seconds()
+        logging.debug(f"Last record ended {time_since_last_record_ended} seconds ago")
+        if time_since_last_record_ended > (loop_interval + time_margin):
+            logging.debug("That exceeds the outage interval, inserting outage data")
+            # we have been offline since the end of the last record until now
+            if last_record.is_ready == False:
+                logging.debug("Last record is offline, so extending that record by the time left")
+                # we have been offline back then too, so we can extend that record until now
+                last_record.state_stable_for_seconds = time_since_last_record_started
+                last_record.save()
+            else:
+                logging.debug("Last record is online, creating record starting when that ended")
+                # we have been online for the last record, so we need to insert a record for the unaccounted time
+                logging.debug(f"Outage started at {last_record_ended_at.isoformat()} and lasted {time_since_last_record_ended}")
+                cls.create(is_ready=False, when=last_record_ended_at, state_stable_for_seconds=time_since_last_record_ended)
+                cls.create(is_ready=status, when=now)
+
+            # if this is the first record after an outage, then there is no opportunity to extend it.
             return
 
-        # last record is the same status as current one -- is the last record stale?
-        now = datetime.datetime.now()
-        
-        # this is the time that we last recorded this status
-        last_record_for_status = last_record.when + datetime.timedelta(seconds=last_record.state_stable_for_seconds)
-        elapsed = now - last_record_for_status  # this is how long it has been since the last record of status
-        elapsed_seconds = elapsed.total_seconds()
-        if elapsed_seconds > (loop_interval + time_margin):
-            # yes, the status is stale -- creating record for all time not accounted for
-            cls.create(is_ready=False,  # if we were not recording status, we were offline
-                    when=last_record_for_status,  # we were offline since the last recorded status
-                    state_stable_for_seconds = (now - last_record.when).total_seconds() )  # and the offline duration is the time between the start and now
+        # the last record was made within acceptable time margins for extension
+        last_record.state_stable_for_seconds = time_since_last_record_started
+        last_record.save()
 
-            # now there is an event that has been last recorded right now, so call myself recursively
-            # if the current status is False, it will extend it until now
-            # if the current status is True, it will record a new one
-            cls.record_status(status, loop_interval, time_margin)
-
-        else:
-            # no, the status is not stale, so extend it until now
-            last_record.state_stable_for_seconds = (now - last_record.when).total_seconds()
-            last_record.save()
-
-            # for some reason, this algorithm misses several zero-length events when starting for the first time.
-            # if we are stable, this is a good time to clean those up.
-            cls.delete().where(cls.state_stable_for_seconds == 0).execute()
-
+        # is the record of the same value? if it isn't, then the state changed, so we mark it as having changed in this iteration (with zero length -- it'll get extended as needed)
+        if last_record.is_ready != status:
+            logging.debug(f"Between last log and now, we switched state from {last_record.is_ready} to {status}, so creating {status} record.")
+            cls.create(is_ready=status)
 
 
 @create_table
@@ -142,4 +145,27 @@ class TypingTimeSeries(TimeSeries):
     channel_id = pw.BigIntegerField()
     member_id = pw.BigIntegerField()
 
-    
+class MessageReactionEvent(Enum):
+    ADD = 1
+    REMOVE = 2
+    CLEAR_EMOJI = 3
+    CLEAR_ALL = 4
+
+class MessageReactionEventField(pw.Field):
+    field_type = 'integer'
+
+    def db_value(self, value):
+        return str(int(value.value))
+
+    def python_value(self, value):
+        return ReactionEvent( int(value) )
+
+@create_table
+class MessageReactionTimeSeries(TimeSeries):
+    guild_id = pw.BigIntegerField()
+    channel_id = pw.BigIntegerField()
+    message_id = pw.BigIntegerField()
+    reaction = pw.CharField(null=True)
+    reaction_owner_id = pw.BigIntegerField(null=True)
+    event = MessageReactionEventField()
+
